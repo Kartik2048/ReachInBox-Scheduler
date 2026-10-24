@@ -11,6 +11,10 @@ export interface AuthUser {
 
 export interface AuthenticatedRequest extends Request {
   user?: AuthUser;
+  body: any;
+  query: any;
+  params: any;
+  headers: any;
 }
 
 declare global {

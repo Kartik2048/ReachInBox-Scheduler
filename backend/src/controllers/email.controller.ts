@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { emailService } from '../services/email.service';
+import { ScheduleBatchRequest } from '../types/contracts';
 
 const scheduleBatchSchema = z.object({
   senderId: z.string().uuid('Invalid senderId format'),
@@ -29,7 +30,10 @@ export async function handleScheduleBatch(req: AuthenticatedRequest, res: Respon
       return;
     }
 
-    const result = await emailService.scheduleEmailBatch(req.user.id, parseResult.data);
+    const result = await emailService.scheduleEmailBatch(
+      req.user.id,
+      parseResult.data as ScheduleBatchRequest
+    );
     res.status(201).json({
       success: true,
       data: result,
