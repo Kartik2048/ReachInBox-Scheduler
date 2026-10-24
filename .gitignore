@@ -1,4 +1,6 @@
-# Dependencies
+# ==============================================================================
+# Node & Web Dependencies
+# ==============================================================================
 node_modules/
 .pnp
 .pnp.js
@@ -35,3 +37,24 @@ Thumbs.db
 
 # Prisma generated artifacts
 generated/
+
+# ==============================================================================
+# Python Virtual Environments & Caches
+# ==============================================================================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python bytecode & caching
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/

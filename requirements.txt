@@ -1,0 +1,23 @@
+# ==============================================================================
+# ReachInbox Email Scheduler - Python Tooling & Verification Dependencies
+# ==============================================================================
+
+# HTTP Requests & API Automation
+requests>=2.31.0
+httpx>=0.27.0
+
+# Data Validation & Schema Modeling
+pydantic>=2.7.0
+
+# Testing & Assertions
+pytest>=8.1.0
+pytest-asyncio>=0.23.0
+
+# Environment Configuration
+python-dotenv>=1.0.1
+
+# Direct Redis Interaction (Optional Lua / Key Auditing)
+redis>=5.0.3
+
+# Terminal Formatting & Progress Indicators
+rich>=13.7.1
