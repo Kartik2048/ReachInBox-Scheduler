@@ -17,3 +17,8 @@ export function getRateLimitKey(senderId: string, date: Date = new Date()): stri
 export function getLastSentKey(senderId: string): string {
   return `last_sent_at:${senderId}`;
 }
+
+export function getReservedSlotKey(senderId: string): string {
+  return `reserved_slot:${senderId}`;
+}
+

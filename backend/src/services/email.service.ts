@@ -8,6 +8,8 @@ import {
   DashboardStatsDTO,
   BullMQEmailPayload,
 } from '../types/contracts';
+import { rateLimiterService } from './rateLimiter.service';
+
 
 // Basic email regex validator
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,12 +54,30 @@ export class EmailService {
       throw new Error('Sender identity not found or does not belong to this account.');
     }
 
-    const delayBetweenEmailsMs = Math.max(100, rawDelay || sender.maxEmailsPerHour ? Math.floor(3600000 / sender.maxEmailsPerHour) : 2000);
-    const hourlyLimit = Math.max(1, rawLimit || sender.maxEmailsPerHour || 200);
+    const delayBetweenEmailsMs =
+      rawDelay !== undefined && rawDelay !== null && !isNaN(Number(rawDelay)) && Number(rawDelay) > 0
+        ? Math.max(100, Number(rawDelay))
+        : sender.maxEmailsPerHour
+        ? Math.max(100, Math.floor(3600000 / sender.maxEmailsPerHour))
+        : 2000;
+
+    const hourlyLimit =
+      rawLimit !== undefined && rawLimit !== null && !isNaN(Number(rawLimit)) && Number(rawLimit) > 0
+        ? Math.max(1, Number(rawLimit))
+        : sender.maxEmailsPerHour || 200;
 
     const now = Date.now();
     const requestedStartTime = new Date(rawStartTime).getTime();
     let slotTime = Math.max(now, isNaN(requestedStartTime) ? now : requestedStartTime);
+
+    // If starting immediately, ensure first slot satisfies minimum spacing from previous sent email
+    const lastSentMs = await rateLimiterService.getLastSentTimestamp(senderId);
+    if (lastSentMs > 0 && Math.abs(slotTime - now) < 1500) {
+      const minNextSlot = lastSentMs + delayBetweenEmailsMs;
+      if (minNextSlot > slotTime) {
+        slotTime = minNextSlot;
+      }
+    }
 
     // 3. Create EmailBatch in PostgreSQL
     const emailBatch = await prisma.emailBatch.create({
@@ -99,7 +119,7 @@ export class EmailService {
       )
     ).getTime();
     let nextHourStart = currentHourStart + 3600000;
-    let countInCurrentHour = 0;
+    let countInCurrentHour = await rateLimiterService.getCurrentHourSentCount(senderId);
 
     for (const recipient of uniqueRecipients) {
       // Check if we reached the hourly quota or crossed into the next hour window
