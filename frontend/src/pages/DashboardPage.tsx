@@ -41,13 +41,15 @@ export const DashboardPage: React.FC = () => {
   const [isComposeOpen, setIsComposeOpen] = useState<boolean>(false);
   const [isAddingSender, setIsAddingSender] = useState<boolean>(false);
 
-  // Debounced search query
+  // Debounced search query ref
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch emails for current tab
+  // Fetch emails for current tab (only show spinner if explicitly requested)
   const fetchEmails = useCallback(
     async (showLoadingSpinner: boolean = false) => {
-      if (showLoadingSpinner) setIsLoading(true);
+      if (showLoadingSpinner) {
+        setIsLoading(true);
+      }
       try {
         const endpoint = activeTab === 'scheduled' ? '/emails/scheduled' : '/emails/sent';
         const res = await api.get(endpoint, {
@@ -66,13 +68,15 @@ export const DashboardPage: React.FC = () => {
       } catch (err) {
         console.error('Error fetching emails:', err);
       } finally {
-        if (showLoadingSpinner) setIsLoading(false);
+        if (showLoadingSpinner) {
+          setIsLoading(false);
+        }
       }
     },
     [activeTab, page, searchQuery]
   );
 
-  // Fetch dashboard stats
+  // Fetch dashboard stats silently
   const fetchStats = useCallback(async () => {
     try {
       const res = await api.get('/emails/stats');
@@ -84,14 +88,14 @@ export const DashboardPage: React.FC = () => {
     }
   }, []);
 
-  // Initial and reactive fetch on tab/page change
+  // 1. Initial / tab / page change fetch (shows spinner only once per tab/page change)
   useEffect(() => {
     fetchEmails(true);
     fetchStats();
     refreshSenders();
-  }, [fetchEmails, fetchStats, refreshSenders]);
+  }, [activeTab, page]);
 
-  // Real-time auto-refresh polling every 3 seconds
+  // 2. Real-time background auto-refresh every 3s (strictly SILENT: showLoadingSpinner = false)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchEmails(false);

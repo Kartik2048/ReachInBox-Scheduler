@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import api from '../lib/api';
 import { UserProfile, SenderDTO, AuthResponse } from '../types/contracts';
 
@@ -31,7 +31,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [senders, setSenders] = useState<SenderWithStats[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load user profile and senders if token is available
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    setSenders([]);
+    localStorage.removeItem('reachinbox_token');
+    localStorage.removeItem('reachinbox_user');
+  }, []);
+
+  const refreshSenders = useCallback(async () => {
+    try {
+      const res = await api.get('/senders');
+      if (res.data?.success) {
+        setSenders(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to refresh senders:', err);
+    }
+  }, []);
+
+  // Load user profile and senders once on mount
   useEffect(() => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('reachinbox_token');
@@ -52,20 +71,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     initializeAuth();
-  }, []);
+  }, [logout]);
 
-  const refreshSenders = async () => {
-    try {
-      const res = await api.get('/senders');
-      if (res.data?.success) {
-        setSenders(res.data.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to refresh senders:', err);
-    }
-  };
-
-  const handleAuthSuccess = (authData: AuthResponse & { senders?: SenderWithStats[] }) => {
+  const handleAuthSuccess = useCallback((authData: AuthResponse & { senders?: SenderWithStats[] }) => {
     setToken(authData.token);
     setUser(authData.user);
     if (authData.senders) {
@@ -73,42 +81,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     localStorage.setItem('reachinbox_token', authData.token);
     localStorage.setItem('reachinbox_user', JSON.stringify(authData.user));
-  };
+  }, []);
 
-  const loginWithGoogle = async (credential: string) => {
+  const loginWithGoogle = useCallback(async (credential: string) => {
     const res = await api.post('/auth/google', { credential });
     if (res.data?.success) {
       handleAuthSuccess(res.data.data);
     } else {
       throw new Error(res.data?.error || 'Google login failed');
     }
-  };
+  }, [handleAuthSuccess]);
 
-  const loginWithDemo = async () => {
+  const loginWithDemo = useCallback(async () => {
     const res = await api.post('/auth/demo');
     if (res.data?.success) {
       handleAuthSuccess(res.data.data);
     } else {
       throw new Error(res.data?.error || 'Demo login failed');
     }
-  };
+  }, [handleAuthSuccess]);
 
-  const createSender = async (name?: string, maxEmailsPerHour?: number) => {
+  const createSender = useCallback(async (name?: string, maxEmailsPerHour?: number) => {
     const res = await api.post('/senders', { name, maxEmailsPerHour });
     if (res.data?.success) {
       await refreshSenders();
     } else {
       throw new Error(res.data?.error || 'Failed to create sender');
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    setSenders([]);
-    localStorage.removeItem('reachinbox_token');
-    localStorage.removeItem('reachinbox_user');
-  };
+  }, [refreshSenders]);
 
   return (
     <AuthContext.Provider
