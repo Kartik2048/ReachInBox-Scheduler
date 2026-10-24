@@ -1,0 +1,100 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum JobStatus {
+  SCHEDULED
+  RESCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model User {
+  id        String       @id @default(uuid())
+  email     String       @unique
+  name      String
+  avatarUrl String?
+  googleId  String       @unique
+  senders   Sender[]
+  batches   EmailBatch[]
+  emailJobs EmailJob[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@map("users")
+}
+
+model Sender {
+  id               String       @id @default(uuid())
+  userId           String
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  email            String
+  smtpHost         String       @default("smtp.ethereal.email")
+  smtpPort         Int          @default(587)
+  smtpUser         String
+  smtpPass         String
+  maxEmailsPerHour Int          @default(200)
+  batches          EmailBatch[]
+  emailJobs        EmailJob[]
+  createdAt        DateTime     @default(now())
+
+  @@unique([userId, email])
+  @@map("senders")
+}
+
+model EmailBatch {
+  id                   String     @id @default(uuid())
+  userId               String
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  senderId             String
+  sender               Sender     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  subject              String
+  body                 String     @db.Text
+  totalEmails          Int
+  startTime            DateTime
+  delayBetweenEmailsMs Int        @default(2000)
+  hourlyLimit          Int        @default(200)
+  jobs                 EmailJob[]
+  createdAt            DateTime   @default(now())
+
+  @@map("email_batches")
+}
+
+model EmailJob {
+  id                   String     @id @default(uuid())
+  batchId              String
+  batch                EmailBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  userId               String
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  senderId             String
+  sender               Sender     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  recipientEmail       String
+  subject              String
+  body                 String     @db.Text
+  status               JobStatus  @default(SCHEDULED)
+  scheduledAt          DateTime
+  effectiveScheduledAt DateTime
+  sentAt               DateTime?
+  bullmqJobId          String     @unique
+  etherealMessageId    String?
+  etherealPreviewUrl   String?
+  rescheduledCount     Int        @default(0)
+  attempts             Int        @default(0)
+  errorMessage         String?
+  delayBetweenEmailsMs Int
+  hourlyLimit          Int
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  @@index([userId, status, effectiveScheduledAt])
+  @@index([senderId, status])
+  @@index([batchId])
+  @@map("email_jobs")
+}
